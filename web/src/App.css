@@ -1,0 +1,344 @@
+/* Layout and component styles for the ground station. */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ---- Top bar / nav ---- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.brand .brand-sub {
+  color: var(--text-dim);
+  font-weight: 400;
+  margin-left: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.nav {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.nav a {
+  text-decoration: none;
+  color: var(--text-dim);
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.nav a.active {
+  color: var(--text);
+  background: var(--bg-elev);
+  border-color: var(--border);
+}
+
+.topbar-spacer {
+  flex: 1;
+}
+
+/* ---- Status pills ---- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.dot.green {
+  background: var(--green);
+}
+.dot.yellow {
+  background: var(--yellow);
+}
+.dot.red {
+  background: var(--red);
+}
+
+.txt-green {
+  color: var(--green);
+}
+.txt-yellow {
+  color: var(--yellow);
+}
+.txt-red {
+  color: var(--red);
+}
+.txt-dim {
+  color: var(--text-dim);
+}
+
+/* ---- Content ---- */
+.content {
+  flex: 1;
+  padding: 1rem;
+  overflow: auto;
+}
+
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.panel h2 {
+  font-size: 1rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+/* ---- Drive view ---- */
+.drive-grid {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 900px) {
+  .drive-grid {
+    grid-template-columns: 320px 1fr;
+    align-items: start;
+  }
+}
+
+.readouts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.readout {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.readout .label {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.readout .value {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  margin-top: 0.2rem;
+}
+
+.readout.big .value {
+  font-size: 2.6rem;
+  line-height: 1.1;
+}
+
+.readout .value small {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+.readout.warn {
+  border-color: var(--red);
+}
+
+.warn-banner {
+  background: rgba(255, 77, 79, 0.12);
+  border: 1px solid var(--red);
+  color: var(--red);
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+/* ---- Touch controls ---- */
+.controls {
+  display: flex;
+  gap: 1.5rem;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.control-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.control-block .ctl-label {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.control-block .ctl-value {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+}
+
+/* Vertical throttle slider */
+.throttle-slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 42px;
+  height: 220px;
+  accent-color: var(--accent);
+}
+
+.steering-slider {
+  width: 260px;
+  max-width: 70vw;
+  accent-color: var(--accent);
+}
+
+.ctl-help {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+  line-height: 1.5;
+}
+
+kbd {
+  font-family: var(--mono);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+/* ---- Live view ---- */
+.chart-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.chart-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem 0.75rem 0.25rem;
+}
+
+.chart-card h3 {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 0.25rem;
+}
+
+.lap-ticker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.lap-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  padding: 0.4rem 0.6rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* ---- Dashboard ---- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.kpi {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.kpi .label {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kpi .value {
+  font-family: var(--mono);
+  font-size: 1.4rem;
+  margin-top: 0.3rem;
+}
+
+.session-picker {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.muted {
+  color: var(--text-dim);
+}
+
+.error {
+  color: var(--red);
+}
+
+.row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.spacer-sm {
+  height: 0.5rem;
+}
