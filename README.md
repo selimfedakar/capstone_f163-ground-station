@@ -57,12 +57,24 @@ over `docs/CONTRACT.md`.
 
 ## Team
 
-| Department | People |
-|---|---|
-| Software Engineering (this repo) | Ahmet Selim Fedakar, Cuneytemir Ciftsuren |
-| Computer Engineering | Mithatcan Temizkan |
-| Mechatronics Engineering | TBD (roster being finalized) |
-| Advisors | Serkan Simsek, Tarkan Aydin, Ercan Erturk |
+Eight students across three departments. This repo is owned by the Software
+Engineering lane; everyone builds against the same interface contract.
+
+| Member | Department | GitHub |
+|---|---|---|
+| Ahmet Selim Fedakar | Software Engineering | [@selimfedakar](https://github.com/selimfedakar) |
+| Cuneytemir Ciftsuren | Software Engineering | TBA |
+| Mithatcan Temizkan | Computer Engineering | TBA |
+| TBA | TBA | TBA |
+| TBA | TBA | TBA |
+| TBA | TBA | TBA |
+| TBA | TBA | TBA |
+| TBA | TBA | TBA |
+
+Rows marked TBA are filled in as teammates confirm their names, departments,
+and GitHub handles (roster lives on the university capstone portal).
+
+**Advisors:** Serkan Simsek, Tarkan Aydin, Ercan Erturk
 
 ## What works today
 
