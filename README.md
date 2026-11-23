@@ -81,31 +81,53 @@ and GitHub handles (roster lives on the university capstone portal).
 Built and tested end to end against the simulator (no hardware required):
 
 - [x] FastAPI server: `/ws/car` (vehicles), `/ws/ui` (operator UIs), REST `/api/*`,
-      SQLite persistence, and KPI computation, all built against `docs/CONTRACT.md` v1.
+      SQLite persistence, and KPI computation, all built against `docs/CONTRACT.md`
+      (v1.1, proposed; a v1 car still connects unmodified).
+- [x] Server-side lap timing: laps are timed and validated from the positions a car
+      reports (a full circuit is required, the crossing time is interpolated, a lap
+      that leaves the track does not count toward best or average). A car's own lap
+      report is kept as a cross-check.
+- [x] Races: start one from the Live view, every connected car is put on the start
+      line and timed from the same instant, the race ends at the lap target or when
+      the operator finishes it, and the classification is stored.
+- [x] Measured command latency: the car acknowledges each command, the server logs
+      the round trip, and p50/p95 one-way latency is a KPI (requirement: p95 at or
+      below 100 ms).
+- [x] KPIs beyond v1: distance, average speed while moving, off-track time, hardest
+      acceleration / braking / cornering from the IMU, data rate, longest silence,
+      and a sensor error rate that is separate from packet loss.
+- [x] CSV export of telemetry, laps and race results.
 - [x] Car simulator: kinematic bicycle model at 20 Hz on a closed oval track, with a
       pure-pursuit autopilot (`--mode auto`) that drives real laps, a manual mode that
       applies the last operator command with a 0.5 s safety decay to zero throttle,
-      sensor noise injection, and `--loss` packet dropping to exercise the loss KPI.
-- [x] Web UI, three views (React + TypeScript + Vite): Drive (keyboard and touch
-      control with a live latency badge and auto-reconnect), Live (rolling ~60 s
-      charts and a lap ticker), Dashboard (session list, KPI cards, lap-time and
-      speed/battery charts over REST).
-- [x] Test suite: 19 tests (`make test`) covering the DB layer, exact KPI math
-      including `seq_gaps` and `packet_loss_pct`, control clamping, and a full
-      WebSocket round-trip with a fake car and a fake UI, plus an end-to-end smoke
-      script (`make smoke`) that boots the server, runs the autopilot for 10 s, and
-      asserts a real session landed in the database.
+      IMU readings derived from the motion, command acknowledgement, `reset`, and
+      fault injection (`--loss` drops packets, `--sensor-fault` blanks readings).
+- [x] Web UI, three views (React + TypeScript + Vite): Drive (track map, hold-to-drive
+      keys and levers, reset, live readouts including command delay and IMU), Live
+      (all cars on the map, race control, timing table, rolling 60 s plots),
+      Dashboard (session and race reports over REST, CSV downloads). Every value
+      carries a "?" with a Turkish explanation of what it is and how it is computed.
+- [x] Test suite: 79 tests (`make test`) covering the DB layer and v1 migration, KPI
+      math, the lap tracker, track geometry, races, the REST API, control clamping,
+      the simulator (laps, reset, steering direction, IMU), and full WebSocket
+      round-trips with a fake car and a fake UI, plus an end-to-end smoke script
+      (`make smoke`) that boots the server, runs the autopilot for 15 s, and asserts
+      a real session with a timed lap landed in the database.
 
 ## What's next
 
-- [ ] Multi-car run: two simulated cars with independent sessions and sequence counters.
-- [ ] Latency report: p50 and p95 control latency on loopback and on a LAN with a phone
-      as a second client, measured through `ping`/`pong` RTT.
+- [ ] Cross-lane review of contract v1.1 with the CMP lane; the open points are listed
+      in `docs/CONTRACT.md` section 9 (position accuracy, heading convention, the real
+      track's survey, lap authority).
+- [ ] Latency report on a LAN with a phone as a second client. The measurement exists
+      (Dashboard, "Commands"); loopback gives about 3 ms, the real link is untested.
 - [ ] Integration with the CMP onboard stack over `/ws/car` (the first hard cross-lane
       dependency; see `docs/PLAN.md` milestone M3).
 - [ ] Real hardware link once Mechatronics ships cars and the Wi-Fi vs Bluetooth comm
       decision is made.
-- [ ] Responsive pass at 390 px for the phone demo.
+- [ ] A track file for the real track (`F163_TRACK`, contract section 4.1).
+- [ ] Test the phone layout on a real phone; so far it has only been checked at phone
+      width in a desktop browser.
 
 ## Quickstart
 
@@ -127,7 +149,7 @@ make sim ARGS="--mode auto --duration 20" # pure-pursuit, completes laps
 Run the tests and the end-to-end smoke check:
 
 ```bash
-make test                                 # 19-test pytest suite
+make test                                 # 79-test pytest suite
 make smoke                                # boot server + autopilot, assert via REST
 ```
 
@@ -145,10 +167,21 @@ No backend handy? Run the UI standalone with a built-in fake telemetry generator
 http://localhost:5173/?mock=1
 ```
 
-Useful simulator flags: `--car-id <id>`, `--mode {auto,manual}`, `--loss <p>` (telemetry
-drop probability, for example `--loss 0.01`, which opens `seq` gaps for the packet-loss
-KPI), `--duration <seconds>` (0 runs until interrupted). Manual mode applies the last
+Useful simulator flags: `--car-id <id>`, `--mode {auto,manual}`, `--pace <f>` (autopilot
+speed factor, 0.2 to 1.15), `--loss <p>` (telemetry drop probability, for example
+`--loss 0.01`, which opens `seq` gaps for the packet-loss KPI), `--sensor-fault <p>`
+(probability that a frame carries a sensor with no reading, for the sensor-error KPI),
+`--duration <seconds>` (0 runs until interrupted). Manual mode applies the last
 control received over `/ws/ui` and decays throttle to zero after 0.5 s of silence.
+
+A race between two simulated cars, one slower and with a flaky link:
+
+```bash
+make sim ARGS="--car-id car-1 --mode auto"
+make sim ARGS="--car-id car-2 --mode auto --pace 0.9 --loss 0.01 --sensor-fault 0.01"
+```
+
+Then open the Live view and press Start race.
 
 ## Architecture
 
@@ -160,20 +193,23 @@ The ground-station internals:
   sim/car.py ---/ws/car---> server/app/ <---/ws/ui---> web/ (React + TS + Vite)
   (or real car)             +----------------+          +----------------------+
                             | ws_car  ingest |          | DriveView   control  |
-                            | ws_ui   state  |          | LiveView    charts   |
-                            | api     db     |          | DashboardView  KPIs  |
-                            +--------+-------+          +----------------------+
-                                     |  REST /api/*            ^
-                                     v                         | reads
+                            | ws_ui   state  |          | LiveView    race     |
+                            | laps    race   |          | DashboardView  KPIs  |
+                            | track   api db |          +----------------------+
+                            +--------+-------+                 ^
+                                     |  REST /api/*            | reads
+                                     v                         |
                              SQLite data/f163.db  -------------+
                              sessions / telemetry / laps / control_log
+                             races / race_entries
 ```
 
-The server fans every telemetry and lap frame out to all connected UIs verbatim
-(`state`), relays clamped operator `control` to the target car, batches telemetry
-into SQLite (50 rows or 1 s), and computes KPIs on demand over REST. The simulator is
-just a WebSocket client of `/ws/car`, so a real car takes its place by honoring the
-same frames.
+The server fans every telemetry frame out to all connected UIs verbatim, locates each
+position on the track and times the laps itself (`laps`, `track`), relays clamped
+operator `control` to the target car and measures its acknowledgement, runs races
+(`race`), batches telemetry into SQLite (50 rows or 1 s), and computes KPIs on demand
+over REST. The simulator is just a WebSocket client of `/ws/car`, so a real car takes
+its place by honoring the same frames.
 
 `docs/CONTRACT.md` is the single source of truth for every frame, endpoint, and table
 in this picture. All three components (simulator, server, UI) are built against it;
@@ -187,7 +223,7 @@ the deeper picture, see `docs/SRS.md` (requirements), `docs/ARCHITECTURE.md`
 ```
 f163-ground-station/
   docs/
-    CONTRACT.md              binding interface contract v1 (frames, REST, schema)
+    CONTRACT.md              interface contract v1.1, proposed (frames, REST, schema, KPIs)
     SRS.md                   software requirements specification
     ARCHITECTURE.md          architecture document
     PLAN.md                  fall-semester milestone plan
@@ -195,16 +231,19 @@ f163-ground-station/
   server/
     app/
       main.py                FastAPI app factory + WS routes + DB lifespan
-      ws_car.py              /ws/car handler (hello, telemetry, lap)
-      ws_ui.py               /ws/ui handler (state, control relay, ping/pong)
-      api.py                 REST /api/* endpoints
-      db.py                  SQLite storage layer + KPI computation
+      ws_car.py              /ws/car handler (hello, telemetry, lap, control_ack)
+      ws_ui.py               /ws/ui handler (state, control relay, reset, ping/pong)
+      api.py                 REST /api/* endpoints (sessions, KPIs, track, races, CSV)
+      db.py                  SQLite storage layer + KPI computation + race results
       state.py               in-memory car/UI registry + broadcast + clamping
+      track.py               track description: centreline, width, GPS anchor
+      laps.py                lap timing and validation from reported positions
+      race.py                race start, finish and membership
     README.md                server and simulator usage
   sim/
     car.py                   kinematic bicycle simulator, pure-pursuit, emitter
     track.py                 closed stadium/oval centerline + pursuit helpers
-  tests/                     pytest suite (DB, KPIs, control clamp, WS round-trip)
+  tests/                     pytest suite (DB, KPIs, laps, track, races, API, simulator, WS)
   scripts/smoke.sh           end-to-end smoke test
   web/                       React + TypeScript + Vite UI (Drive / Live / Dashboard)
   Makefile                   install / server / sim / test / smoke

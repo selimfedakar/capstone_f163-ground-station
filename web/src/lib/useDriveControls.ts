@@ -1,160 +1,169 @@
 // Drive control input hook.
-// - Tracks throttle/steering in [-1, 1] from keyboard and on-screen widgets.
-// - Keyboard: W/ArrowUp = +throttle, S/ArrowDown = -throttle,
-//   A/ArrowLeft = steer left, D/ArrowRight = steer right, Space = zero/brake.
-// - Sends `control` only when values change OR every 100 ms while nonzero
-//   (heartbeat), at up to 30 Hz. Values are clamped by the connection layer.
+//
+// Hold-to-drive, like an RC transmitter: a key or lever commands the car only
+// while it is held, and everything returns to zero on release.
+// - Keyboard: W/ArrowUp forward, S/ArrowDown brake or reverse, A/D or
+//   ArrowLeft/ArrowRight steer, Space cuts both to zero, 1/2/3 pick the power
+//   limit, R puts the car back on the start line. Key input eases toward its target so steering is not a step.
+// - Levers (touch or mouse) set the value directly and override the keys.
+// - Sends `control` when the values change, and every 100 ms while nonzero as a
+//   heartbeat, never faster than 30 Hz (contract section 3, FR-5).
+// - Losing focus zeroes everything, so a backgrounded tab cannot keep driving.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const STEP = 0.1 // keyboard increment per key event
-const HEARTBEAT_MS = 100 // resend period while nonzero
-const MIN_SEND_INTERVAL_MS = 1000 / 30 // 30 Hz cap
+const TICK_MS = 1000 / 30
+const HEARTBEAT_MS = 100
+const THROTTLE_RATE = 4 // full scale per second, keyboard only
+const STEERING_RATE = 6
 
-const clamp = (v: number) => Math.max(-1, Math.min(1, v))
+export const POWER_LIMITS = [0.4, 0.7, 1] as const
 
 export interface DriveControls {
   throttle: number
   steering: number
-  setThrottle: (v: number) => void
-  setSteering: (v: number) => void
-  zero: () => void
-  /** Attach keyboard handlers to window; returns detach. */
-  enabled: boolean
-  setEnabled: (v: boolean) => void
+  /** Index into POWER_LIMITS. */
+  power: number
+  setPower: (i: number) => void
+  /** Lever input in [-1, 1], or null when the lever is released. */
+  setLeverThrottle: (v: number | null) => void
+  setLeverSteering: (v: number | null) => void
 }
+
+const approach = (cur: number, target: number, maxStep: number) =>
+  Math.abs(target - cur) <= maxStep ? target : cur + Math.sign(target - cur) * maxStep
 
 export function useDriveControls(
   send: (throttle: number, steering: number) => void,
   canSend: boolean,
+  onReset?: () => void,
 ): DriveControls {
-  const [throttle, setThrottleState] = useState(0)
-  const [steering, setSteeringState] = useState(0)
-  const [enabled, setEnabled] = useState(true)
+  const [throttle, setThrottle] = useState(0)
+  const [steering, setSteering] = useState(0)
+  const [power, setPowerState] = useState(1)
 
-  // Refs mirror state for the timer/keyboard closures.
-  const throttleRef = useRef(0)
-  const steeringRef = useRef(0)
-  const lastSentRef = useRef({ throttle: 0, steering: 0, at: 0 })
+  const keys = useRef(new Set<string>())
+  const lever = useRef<{ throttle: number | null; steering: number | null }>({
+    throttle: null,
+    steering: null,
+  })
+  const value = useRef({ throttle: 0, steering: 0 })
+  const sent = useRef({ throttle: 0, steering: 0, at: 0 })
+  const powerRef = useRef(1)
+  const sendRef = useRef(send)
   const canSendRef = useRef(canSend)
+  const resetRef = useRef(onReset)
   useEffect(() => {
+    sendRef.current = send
     canSendRef.current = canSend
-  }, [canSend])
+    resetRef.current = onReset
+  }, [send, canSend, onReset])
 
-  const doSend = useCallback(
-    (force: boolean) => {
-      if (!canSendRef.current) return
-      const now = Date.now()
-      const last = lastSentRef.current
-      const changed =
-        throttleRef.current !== last.throttle ||
-        steeringRef.current !== last.steering
-      const sinceLast = now - last.at
-      if (!force && !changed) return
-      if (sinceLast < MIN_SEND_INTERVAL_MS && !force) return
-      send(throttleRef.current, steeringRef.current)
-      lastSentRef.current = {
-        throttle: throttleRef.current,
-        steering: steeringRef.current,
-        at: now,
-      }
-    },
-    [send],
-  )
+  const setPower = useCallback((i: number) => {
+    powerRef.current = i
+    setPowerState(i)
+  }, [])
 
-  const setThrottle = useCallback(
-    (v: number) => {
-      const c = clamp(v)
-      throttleRef.current = c
-      setThrottleState(c)
-      doSend(true)
-    },
-    [doSend],
-  )
+  const setLeverThrottle = useCallback((v: number | null) => {
+    lever.current.throttle = v
+  }, [])
+  const setLeverSteering = useCallback((v: number | null) => {
+    lever.current.steering = v
+  }, [])
 
-  const setSteering = useCallback(
-    (v: number) => {
-      const c = clamp(v)
-      steeringRef.current = c
-      setSteeringState(c)
-      doSend(true)
-    },
-    [doSend],
-  )
-
-  const zero = useCallback(() => {
-    throttleRef.current = 0
-    steeringRef.current = 0
-    setThrottleState(0)
-    setSteeringState(0)
-    doSend(true)
-  }, [doSend])
-
-  // Keyboard handling.
+  // Keyboard state.
   useEffect(() => {
-    if (!enabled) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      // Ignore when typing in an input/textarea/select.
-      const target = e.target as HTMLElement | null
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT')
-      ) {
+    const NAMES: Record<string, string> = {
+      w: 'fwd', arrowup: 'fwd', s: 'back', arrowdown: 'back',
+      a: 'left', arrowleft: 'left', d: 'right', arrowright: 'right', ' ': 'stop',
+    }
+    const typing = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')
+    }
+    const down = (e: KeyboardEvent) => {
+      if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return
+      const k = e.key.toLowerCase()
+      if (k === '1' || k === '2' || k === '3') {
+        setPower(Number(k) - 1)
         return
       }
-      let handled = true
-      switch (e.key) {
-        case 'w':
-        case 'W':
-        case 'ArrowUp':
-          setThrottle(throttleRef.current + STEP)
-          break
-        case 's':
-        case 'S':
-        case 'ArrowDown':
-          setThrottle(throttleRef.current - STEP)
-          break
-        case 'a':
-        case 'A':
-        case 'ArrowLeft':
-          setSteering(steeringRef.current - STEP)
-          break
-        case 'd':
-        case 'D':
-        case 'ArrowRight':
-          setSteering(steeringRef.current + STEP)
-          break
-        case ' ':
-          zero()
-          break
-        default:
-          handled = false
+      if (k === 'r') {
+        if (!e.repeat) resetRef.current?.()
+        return
       }
-      if (handled) e.preventDefault()
+      const name = NAMES[k]
+      if (!name) return
+      keys.current.add(name)
+      e.preventDefault()
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [enabled, setThrottle, setSteering, zero])
+    const up = (e: KeyboardEvent) => {
+      const name = NAMES[e.key.toLowerCase()]
+      if (name) keys.current.delete(name)
+    }
+    const release = () => {
+      keys.current.clear()
+      lever.current = { throttle: null, steering: null }
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', release)
+    const hidden = () => {
+      if (document.visibilityState === 'hidden') release()
+    }
+    document.addEventListener('visibilitychange', hidden)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', release)
+      document.removeEventListener('visibilitychange', hidden)
+    }
+  }, [setPower])
 
-  // Heartbeat: resend while any value is nonzero.
+  // Control loop.
   useEffect(() => {
+    let last = performance.now()
     const id = setInterval(() => {
-      if (throttleRef.current !== 0 || steeringRef.current !== 0) {
-        doSend(true)
-      }
-    }, HEARTBEAT_MS)
-    return () => clearInterval(id)
-  }, [doSend])
+      const now = performance.now()
+      const dt = Math.min(0.1, (now - last) / 1000)
+      last = now
+      const k = keys.current
+      const limit = POWER_LIMITS[powerRef.current]
+      const v = value.current
 
-  return {
-    throttle,
-    steering,
-    setThrottle,
-    setSteering,
-    zero,
-    enabled,
-    setEnabled,
-  }
+      if (k.has('stop')) {
+        v.throttle = 0
+        v.steering = 0
+      } else {
+        if (lever.current.throttle != null) {
+          v.throttle = lever.current.throttle * limit
+        } else {
+          const target = ((k.has('fwd') ? 1 : 0) - (k.has('back') ? 1 : 0)) * limit
+          v.throttle = approach(v.throttle, target, THROTTLE_RATE * dt)
+        }
+        if (lever.current.steering != null) {
+          v.steering = lever.current.steering
+        } else {
+          const target = (k.has('right') ? 1 : 0) - (k.has('left') ? 1 : 0)
+          v.steering = approach(v.steering, target, STEERING_RATE * dt)
+        }
+      }
+
+      const t = Math.round(v.throttle * 100) / 100
+      const s = Math.round(v.steering * 100) / 100
+      setThrottle(t)
+      setSteering(s)
+
+      if (!canSendRef.current) return
+      const changed = t !== sent.current.throttle || s !== sent.current.steering
+      const heartbeat = (t !== 0 || s !== 0) && now - sent.current.at >= HEARTBEAT_MS
+      if (changed || heartbeat) {
+        sendRef.current(t, s)
+        sent.current = { throttle: t, steering: s, at: now }
+      }
+    }, TICK_MS)
+    return () => clearInterval(id)
+  }, [])
+
+  return { throttle, steering, power, setPower, setLeverThrottle, setLeverSteering }
 }

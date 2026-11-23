@@ -1,14 +1,15 @@
 // Built-in fake telemetry generator for standalone demos (?mock=1).
 // Emits the same ServerToUiMsg stream a real server would push to a UI:
-//   state (once) -> telemetry @ 20 Hz -> lap every ~15 s -> pong for pings.
-// Speed follows a sine wave, battery drains slowly, a lap fires on a timer.
+//   state (once) -> telemetry @ 20 Hz -> lap on each lap -> pong for pings.
+// The mock car laps the same stadium track the simulator uses, slowing for
+// the corners, so the map views work without a backend.
 
 import type { PingMsg, ServerToUiMsg } from './contract'
+import { DEFAULT_TRACK, STADIUM, localToGps, stadiumPointAt } from './track'
 
 const MOCK_CAR_ID = 'car-mock'
 const MOCK_SESSION_ID = 1
 const TICK_HZ = 20
-const LAP_INTERVAL_S = 15
 
 export interface MockHandle {
   /** Feed a ping so the mock can answer with a pong (latency display). */
@@ -28,8 +29,8 @@ export function startMock(
   let battery = 8.3
   let lastLapT = startT
   let lapNumber = 0
-  let lastThrottle = 0
-  let lastSteering = 0
+  const lastThrottle = 0
+  const lastSteering = 0
 
   // Announce current state immediately (one connected mock car).
   onMessage({
@@ -44,18 +45,27 @@ export function startMock(
     ],
   })
 
+  let distance = 0
+  let speed = 0
+
   const tick = () => {
     const t = Date.now() / 1000
     const elapsed = t - startT
+    const dt = 1 / TICK_HZ
 
-    // Sine-wave speed between ~1 and ~5 m/s.
-    const speed = 3 + 2 * Math.sin(elapsed * 0.6)
-    // Battery sags with speed and drains slowly over time.
-    battery = Math.max(6.2, 8.3 - elapsed * 0.004 - speed * 0.02)
-    const heading = (elapsed * 30) % 360
-    // Simulated applied actuation tracks the last command, else autopilot-ish.
-    const throttle = lastThrottle || Math.min(1, speed / 5)
-    const steering = lastSteering || 0.3 * Math.sin(elapsed * 0.9)
+    // Slower through the two corners, faster down the straights.
+    const along = distance % STADIUM.length
+    const half = STADIUM.length / 2
+    const inCorner = along % half > STADIUM.straight
+    const target = inCorner ? 2.8 : 4.4
+    speed += Math.max(-4 * dt, Math.min(4 * dt, target - speed))
+    distance += speed * dt
+
+    const p = stadiumPointAt(distance)
+    const { lat, lon } = localToGps(DEFAULT_TRACK, p.x, p.y)
+    const throttle = lastThrottle || speed / 5
+    const steering = lastSteering || (inCorner ? 0.16 : 0)
+    battery = Math.max(6.2, 8.3 - elapsed * 0.004 - throttle * 0.5)
 
     seq += 1
     onMessage({
@@ -63,26 +73,16 @@ export function startMock(
       car_id: MOCK_CAR_ID,
       seq,
       t,
-      imu: {
-        ax: 0.1 * Math.sin(elapsed),
-        ay: 0.1 * Math.cos(elapsed),
-        az: 9.81,
-        gx: 0,
-        gy: 0,
-        gz: 0.3 * steering,
-      },
-      gps: {
-        lat: 41.0421 + 0.0001 * Math.sin(elapsed * 0.6),
-        lon: 29.0093 + 0.0001 * Math.cos(elapsed * 0.6),
-      },
+      imu: { ax: 0, ay: 0, az: 9.81, gx: 0, gy: 0, gz: inCorner ? speed / 3 : 0 },
+      gps: { lat, lon },
       speed_mps: speed,
-      heading_deg: heading,
+      heading_deg: (((p.heading * 180) / Math.PI) % 360 + 360) % 360,
       battery_v: battery,
       steering,
       throttle,
     })
 
-    if (t - lastLapT >= LAP_INTERVAL_S) {
+    if (Math.floor(distance / STADIUM.length) > lapNumber) {
       lapNumber += 1
       onMessage({
         type: 'lap',
@@ -90,6 +90,8 @@ export function startMock(
         lap_number: lapNumber,
         lap_time_s: t - lastLapT,
         t,
+        valid: true,
+        source: 'server',
       })
       lastLapT = t
     }

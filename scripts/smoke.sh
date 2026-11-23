@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # F163 ground-station smoke test.
-# Starts the server, runs the simulator in auto mode for ~10 s, then checks
+# Starts the server, runs the simulator in auto mode for ~15 s, then checks
 # the REST API: a session exists, a KPI query reports lap_count >= 1 and
 # telemetry_rows > 100. Prints PASS/FAIL and cleans up processes.
 
@@ -12,7 +12,8 @@ cd "$REPO_ROOT"
 VENV="$REPO_ROOT/.venv"
 PY="$VENV/bin/python"
 HOST="127.0.0.1"
-PORT="8000"
+# Override when 8000 is taken, e.g. by a server you are already running.
+PORT="${F163_SMOKE_PORT:-8000}"
 BASE="http://$HOST:$PORT"
 DB_PATH="$REPO_ROOT/data/smoke.db"
 
@@ -60,9 +61,10 @@ done
 [ "$READY" -eq 1 ] || fail "server did not become healthy"
 echo "Server healthy."
 
-# 3. Run the simulator in auto mode for 10 s.
-echo "Running simulator (auto, 10 s)..."
-"$PY" -m sim.car --mode auto --duration 10 \
+# 3. Run the simulator in auto mode for 15 s. The first lap, from a standing
+# start, takes about 9 s and only counts once the car has been all the way round.
+echo "Running simulator (auto, 15 s)..."
+"$PY" -m sim.car --mode auto --duration 15 \
   --server "ws://$HOST:$PORT/ws/car" --car-id car-smoke || fail "simulator exited non-zero"
 
 # Give the server a moment to flush the final telemetry batch.
