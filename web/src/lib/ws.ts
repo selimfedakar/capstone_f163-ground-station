@@ -7,6 +7,7 @@
 import type {
   ControlMsg,
   PingMsg,
+  ResetMsg,
   ServerToUiMsg,
   UiHelloMsg,
 } from './contract'
@@ -105,7 +106,17 @@ export class UiWsClient {
     }
   }
 
+  /** Ask the server for a fresh `state` (it answers any `hello`). */
+  sendHello(): void {
+    const hello: UiHelloMsg = { type: 'hello', client: 'web' }
+    this.rawSend(hello)
+  }
+
   sendControl(msg: ControlMsg): void {
+    this.rawSend(msg)
+  }
+
+  sendReset(msg: ResetMsg): void {
     this.rawSend(msg)
   }
 

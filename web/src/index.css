@@ -1,79 +1,1275 @@
-/* F163 Ground Station — "pit wall" dark theme.
-   Hand-rolled, responsive down to a phone screen. */
+/* F163 ground station.
+   A trackside sheet: pale painted concrete, asphalt ink, kerb red for trouble.
+   Light on purpose, so it stays readable on a phone outdoors at the track.
+   Colours are mirrored in src/lib/theme.ts for the canvas drawings. */
 
 :root {
-  --bg: #0b0e14;
-  --bg-panel: #131722;
-  --bg-elev: #1b2130;
-  --border: #2a3242;
-  --text: #e6eaf2;
-  --text-dim: #8a93a6;
-  --accent: #35c4ff;
-  --green: #2ecc71;
-  --yellow: #f4c430;
-  --red: #ff4d4f;
-  --mono: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', monospace;
-
-  color-scheme: dark;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: var(--text);
-  background-color: var(--bg);
+  --ground: #e6e8e1;
+  --paper: #f5f6f1;
+  --ink: #1b1f22;
+  --muted: #5e666b;
+  --rule: #c9cec4;
+  --asphalt: #2b3034;
+  --kerb: #d5332a;
+  --green: #1f8a4c;
+  --yellow: #e8b31a;
+  --font: 'Archivo Variable', system-ui, sans-serif;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html,
-body,
-#root {
-  margin: 0;
-  min-height: 100%;
-  height: 100%;
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--bg);
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: 400 15px/1.45 var(--font);
+  font-variant-numeric: tabular-nums;
 }
 
 h1,
-h2,
-h3 {
-  margin: 0 0 0.5rem;
-  font-weight: 600;
+p,
+ol,
+ul,
+dl,
+dd,
+pre {
+  margin: 0;
+}
+
+ol,
+ul {
+  padding: 0;
+  list-style: none;
 }
 
 button {
   font: inherit;
+  color: inherit;
   cursor: pointer;
-  color: var(--text);
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem 0.9rem;
 }
 
-button:hover {
-  border-color: var(--accent);
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
-button:active {
-  transform: translateY(1px);
+/* ---- Type roles ---- */
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
 }
 
-select {
+.unit {
+  font-size: 0.5em;
+  font-weight: 500;
+  font-stretch: 100%;
+  color: var(--muted);
+}
+
+.big,
+.mid,
+.num,
+.cmd {
+  font-stretch: 78%;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.big {
+  font-size: clamp(52px, 7vw, 84px);
+  line-height: 0.95;
+}
+
+.mid {
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.mid.small {
+  font-size: 17px;
+  font-stretch: 100%;
+  font-weight: 500;
+  line-height: 1.9;
+}
+
+.sub,
+.quiet {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.stop {
+  color: var(--kerb);
+}
+
+.fastest {
+  color: var(--green);
+}
+
+/* ---- Masthead ---- */
+
+.masthead-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 12px 20px 0;
+}
+
+.brand {
+  font-size: 17px;
+  padding-bottom: 12px;
+}
+
+.brand strong {
+  font-stretch: 70%;
+  font-weight: 800;
+  font-size: 26px;
+  margin-right: 4px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  align-self: flex-end;
+}
+
+.tabs a {
+  padding: 8px 14px 11px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 4px solid transparent;
+}
+
+.tabs a:hover {
+  color: var(--ink);
+}
+
+.tabs a.active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin-left: auto;
+  padding-bottom: 12px;
+  font-size: 14px;
+}
+
+.status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-item .num {
+  font-size: 17px;
+  min-width: 2ch;
+  text-align: right;
+}
+
+.status-item.racing {
+  font-weight: 650;
+}
+
+.status-item.racing::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: var(--green);
+}
+
+.num.good {
+  color: var(--green);
+}
+
+.num.poor {
+  color: var(--kerb);
+}
+
+/* The one decoration: a kerb under the masthead. */
+.kerb {
+  height: 6px;
+  background: repeating-linear-gradient(90deg, var(--kerb) 0 22px, var(--paper) 22px 44px);
+  border-block: 1px solid var(--ink);
+}
+
+.content {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* ---- Hint ---- */
+
+.hint {
+  position: relative;
+  display: inline-flex;
+}
+
+.hint-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  border: 1px solid var(--muted);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* A comfortable tap target without growing the mark. */
+.hint-mark::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+
+.hint-mark:hover,
+.hint-mark:focus-visible {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.hint-pop {
+  position: absolute;
+  top: 25px;
+  z-index: 40;
+  padding: 10px 12px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 400;
+  font-stretch: 100%;
+  letter-spacing: 0;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.hint-pop.above {
+  top: auto;
+  bottom: 25px;
+}
+
+/* ---- Small pieces ---- */
+
+.flag {
+  flex: none;
+}
+
+.signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.swatch {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 18px;
+  margin-right: 8px;
+  vertical-align: -4px;
+}
+
+.meter,
+.level {
+  position: relative;
+  display: block;
+  height: 6px;
+  margin-top: 6px;
+  background: var(--rule);
+}
+
+.meter::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  width: 1px;
+  height: 12px;
+  background: var(--ink);
+}
+
+.meter i,
+.level i {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--ink);
+}
+
+.level i {
+  left: 0;
+}
+
+.level.warn i {
+  background: var(--kerb);
+}
+
+.notice {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  border-left: 5px solid var(--yellow);
+  background: var(--paper);
+  font-weight: 500;
+}
+
+.notice.stop {
+  border-left-color: var(--kerb);
+  color: var(--ink);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.empty {
+  max-width: 62ch;
+  padding: 8vh 0;
+}
+
+.empty h1 {
+  font-stretch: 78%;
+  font-size: 40px;
+  line-height: 1.05;
+  margin-bottom: 12px;
+}
+
+.empty p {
+  margin-bottom: 12px;
+}
+
+pre,
+code,
+kbd {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+}
+
+pre {
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: var(--asphalt);
+  color: var(--paper);
+  overflow-x: auto;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 24px;
+  padding: 1px 6px;
+  border: 1px solid var(--ink);
+  border-bottom-width: 3px;
+  background: var(--paper);
+  text-align: center;
+}
+
+/* ---- Map and plots ---- */
+
+.map {
+  display: block;
+  width: 100%;
+  aspect-ratio: 18 / 10.4;
+}
+
+.map-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.plot {
+  display: block;
+  width: 100%;
+  height: 150px;
+}
+
+.trace {
+  padding-top: 12px;
+  border-top: 1px solid var(--ink);
+}
+
+/* ---- Figures ---- */
+
+.figure {
+  padding: 12px 0 14px;
+  border-top: 1px solid var(--rule);
+  min-width: 0;
+}
+
+/* ---- Drive ---- */
+
+.drive {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr);
+  grid-template-areas:
+    'map  pick'
+    'map  read'
+    'dock read';
+  gap: 20px 36px;
+  align-items: start;
+}
+
+.drive-pick {
+  grid-area: pick;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pick {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 14px 6px 10px;
+  border: 1.5px solid var(--rule);
+  background: transparent;
+}
+
+.pick .swatch {
+  height: 22px;
+}
+
+.pick-name {
+  font-weight: 650;
+  margin-right: 8px;
+}
+
+.pick-mode {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pick.on {
+  border-color: var(--ink);
+  background: var(--paper);
+}
+
+.drive-map {
+  grid-area: map;
+}
+
+.readouts {
+  grid-area: read;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 28px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.readouts .hero {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--ink);
+}
+
+.dock {
+  grid-area: dock;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 28px;
+  align-items: end;
+  padding-top: 16px;
+  border-top: 1px solid var(--ink);
+}
+
+.dock.off .lever,
+.dock.off .cmd {
+  opacity: 0.4;
+}
+
+.dock-lever {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.dock-lever.wide {
+  justify-items: stretch;
+  text-align: center;
+}
+
+.dock-lever.wide .label {
+  justify-content: center;
+}
+
+.cmd {
+  font-size: 22px;
+  min-width: 5ch;
+  text-align: center;
+}
+
+.dock-mid {
+  display: grid;
+  gap: 18px;
+  align-self: start;
+}
+
+.power,
+.keys {
+  display: grid;
+  gap: 6px;
+}
+
+.seg {
+  display: inline-flex;
+  width: fit-content;
+  border: 1.5px solid var(--ink);
+}
+
+.seg button {
+  min-width: 58px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-left: 1.5px solid var(--ink);
+  background: transparent;
+  font-weight: 600;
+}
+
+.seg button:first-child {
+  border-left: 0;
+}
+
+.seg button.on {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.seg.wide {
+  display: flex;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.seg.wide button {
+  flex: 1;
+}
+
+.action {
+  width: fit-content;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid var(--ink);
+  background: var(--paper);
+  font-weight: 600;
+}
+
+.action:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.action.go {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.action.go:hover:not(:disabled) {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.keys dl {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.keys dl div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.keys dt {
+  flex: none;
+  width: 92px;
+}
+
+/* Levers */
+
+.lever {
+  position: relative;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.lever.vertical {
+  width: 72px;
+  height: 210px;
+}
+
+.lever.horizontal {
+  width: 100%;
+  height: 72px;
+}
+
+.lever.disabled {
+  cursor: not-allowed;
+}
+
+.lever-centre,
+.lever-fill,
+.lever-thumb {
+  position: absolute;
+  pointer-events: none;
+}
+
+.lever.vertical .lever-centre {
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px dashed var(--muted);
+}
+
+.lever.horizontal .lever-centre {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-left: 1px dashed var(--muted);
+}
+
+.lever-fill {
+  background: var(--rule);
+}
+
+.lever.vertical .lever-fill {
+  left: 0;
+  right: 0;
+}
+
+.lever.horizontal .lever-fill {
+  top: 0;
+  bottom: 0;
+}
+
+.lever-thumb {
+  background: var(--ink);
+}
+
+.lever.vertical .lever-thumb {
+  left: -1.5px;
+  right: -1.5px;
+  height: 26px;
+  transform: translateY(50%);
+}
+
+.lever.horizontal .lever-thumb {
+  top: -1.5px;
+  bottom: -1.5px;
+  width: 26px;
+  transform: translateX(-50%);
+}
+
+.lever.held {
+  cursor: grabbing;
+}
+
+.lever.held .lever-thumb {
+  background: var(--kerb);
+}
+
+/* ---- Live ---- */
+
+.live {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 24px 36px;
+  align-items: start;
+}
+
+.live-side {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+
+/* Race control */
+
+.race {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ink);
+}
+
+.race-on {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 24px;
+}
+
+.race-name {
+  font-stretch: 78%;
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.race-clock {
+  display: grid;
+  margin-left: auto;
+  text-align: right;
+}
+
+.race-clock .label {
+  justify-content: flex-end;
+}
+
+.race-clock .num {
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.race-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.race-form .field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.race-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
   font: inherit;
-  color: var(--text);
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.4rem 0.6rem;
 }
 
-a {
-  color: var(--accent);
+.race-form input::placeholder {
+  color: var(--muted);
 }
 
-.mono {
-  font-family: var(--mono);
+/* Timing and results tables */
+
+/* No overflow scrolling here: it would clip the explanation pop-ups. The
+   container queries below drop columns instead. */
+.timing {
+  min-width: 0;
+  container: timing / inline-size;
+}
+
+.results {
+  min-width: 0;
+  container: results / inline-size;
+}
+
+.timing table,
+.results table {
+  width: 100%;
+  border-collapse: collapse;
+  border-top: 1px solid var(--ink);
+}
+
+.timing th,
+.timing td,
+.results th,
+.results td {
+  padding: 9px 10px 9px 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.timing th,
+.results th {
+  font-weight: 500;
+  vertical-align: bottom;
+}
+
+.timing :is(th, td):last-child,
+.results :is(th, td):last-child {
+  padding-right: 0;
+}
+
+.timing .r,
+.results .r {
+  text-align: right;
+}
+
+.timing .r .label,
+.results .r .label {
+  justify-content: flex-end;
+}
+
+.timing td.num {
+  font-size: 19px;
+}
+
+.results td.num {
+  font-size: 17px;
+}
+
+/* Drop the columns a narrow table cannot fit; a race adds two more. */
+@container timing (max-width: 540px) {
+  .timing .opt {
+    display: none;
+  }
+}
+
+@container timing (max-width: 700px) {
+  .timing.racing .opt {
+    display: none;
+  }
+}
+
+/* Phone width: tighter cells, and in a race keep position, laps, gap and best. */
+@container timing (max-width: 420px) {
+  .timing :is(th, td):not(:last-child) {
+    padding-right: 5px;
+  }
+
+  .timing .label {
+    gap: 3px;
+  }
+
+  .timing.racing .opt2 {
+    display: none;
+  }
+}
+
+@container results (max-width: 940px) {
+  .results .opt {
+    display: none;
+  }
+}
+
+@container results (max-width: 420px) {
+  .results :is(th, td):not(:last-child) {
+    padding-right: 5px;
+  }
+
+  .results .label {
+    gap: 3px;
+  }
+
+  .results td.num {
+    font-size: 16px;
+  }
+}
+
+.feed ol {
+  margin-top: 6px;
+  border-top: 1px solid var(--rule);
+}
+
+.feed li {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.feed li .swatch {
+  margin-right: 0;
+  align-self: center;
+}
+
+.feed .num {
+  font-size: 17px;
+}
+
+/* A lap only the car claimed: shown, but plainly not counted. */
+.feed li.unconfirmed {
+  color: var(--muted);
+}
+
+.feed li.unconfirmed .num {
+  text-decoration: line-through;
+}
+
+.traces {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 36px;
+}
+
+/* ---- Dashboard ---- */
+
+.dash {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 36px;
+  align-items: start;
+}
+
+.sessions ul {
+  margin-top: 8px;
+  max-height: 72vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--ink);
+}
+
+.sessions ul button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-left: 5px solid transparent;
+  background: transparent;
+  text-align: left;
+}
+
+.sessions ul button:hover {
+  background: var(--paper);
+}
+
+.sessions ul button.on {
+  background: var(--paper);
+  border-left-color: var(--ink);
+}
+
+.ses-top,
+.ses-sub {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ses-top span,
+.ses-sub {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ses-sub em {
+  color: var(--green);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.report {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.report-head h1 {
+  font-stretch: 78%;
+  font-weight: 700;
+  font-size: 34px;
+  line-height: 1.1;
+}
+
+.downloads {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 20px;
+  margin-top: 10px;
+}
+
+.downloads a {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.downloads a:hover {
+  color: var(--kerb);
+}
+
+.group h2 {
+  margin: 0 0 6px;
+  font-stretch: 78%;
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.legend .swatch {
+  height: 4px;
+  width: 16px;
+  margin: 0 4px 0 10px;
+  vertical-align: middle;
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  column-gap: 28px;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+}
+
+.figures .figure:nth-child(-n + 5) {
+  border-top: 0;
+}
+
+.report-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 36px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ink);
+}
+
+.ramp {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ramp i {
+  width: 90px;
+  height: 6px;
+  background: linear-gradient(90deg, rgb(43, 108, 176), rgb(232, 179, 26), rgb(213, 51, 42));
+}
+
+.lapbars {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  max-height: 330px;
+  overflow-y: auto;
+}
+
+.lapbars li {
+  display: grid;
+  grid-template-columns: 26px 1fr 70px;
+  align-items: center;
+  gap: 10px;
+}
+
+.lap-n {
+  color: var(--muted);
+  text-align: right;
+}
+
+.lap-bar {
+  height: 16px;
+  background: var(--rule);
+}
+
+.lap-bar i {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+}
+
+.lapbars .best .lap-bar i {
+  background: var(--green);
+}
+
+.lapbars .best b {
+  color: var(--green);
+}
+
+.lapbars b {
+  text-align: right;
+  font-size: 16px;
+}
+
+/* A lap that left the track: hatched, because its time does not count. */
+.lapbars .invalid .lap-bar i {
+  background: repeating-linear-gradient(135deg, var(--kerb) 0 3px, transparent 3px 7px);
+}
+
+.lapbars .invalid b {
+  color: var(--kerb);
+}
+
+/* ---- Narrow screens (phone at the track) ---- */
+
+/* The timing table needs room: stack the live view before it gets cramped. */
+@media (max-width: 1180px) {
+  .live {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .content {
+    padding: 14px 16px 24px;
+  }
+
+  .masthead-row {
+    padding-inline: 16px;
+  }
+
+  .status {
+    margin-left: 0;
+    width: 100%;
+    order: 3;
+    padding-bottom: 8px;
+  }
+
+  .tabs {
+    margin-left: auto;
+  }
+
+  .drive {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'pick' 'map' 'dock' 'read';
+    gap: 14px;
+  }
+
+  .drive-pick {
+    grid-template-columns: auto auto;
+    justify-content: space-between;
+  }
+
+  .picker {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .dock {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: 'thr steer' 'thr mid';
+    gap: 14px 18px;
+    align-items: start;
+  }
+
+  .dock-lever {
+    grid-area: thr;
+  }
+
+  .dock-lever.wide {
+    grid-area: steer;
+  }
+
+  .dock-mid {
+    grid-area: mid;
+  }
+
+  .keys {
+    display: none;
+  }
+
+  .lever.vertical {
+    height: 190px;
+  }
+
+  .live,
+  .dash,
+  .report-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .traces {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .figures .figure:nth-child(-n + 5) {
+    border-top: 1px solid var(--rule);
+  }
+
+  .figures .figure:nth-child(-n + 2) {
+    border-top: 0;
+  }
+
+  .sessions ul {
+    max-height: 190px;
+  }
+
+  .timing td.num {
+    font-size: 17px;
+  }
+
+  .race-form {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .race-form .action {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .feed li {
+    grid-template-columns: auto 1fr auto auto;
+  }
+
+  .feed li .quiet:last-child {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lever-thumb {
+    transition: background-color 120ms;
+  }
 }
